@@ -1,2 +1,4 @@
 .idea/
 tasksih/
+__pycache__/
+*.pyc
