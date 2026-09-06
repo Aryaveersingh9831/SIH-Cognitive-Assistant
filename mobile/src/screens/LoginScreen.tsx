@@ -11,6 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { colors, spacing, radius, type, touchTarget } from '../theme';
+import { loginUser } from '../api/auth';
 
 type Role = 'patient' | 'caregiver';
 
@@ -36,13 +37,11 @@ export default function LoginScreen({ onLoginSuccess, onGoToRegister }: Props) {
 
     setSubmitting(true);
     try {
-      // TODO: replace with real API call once backend teammate exposes
-      // POST /api/auth/login. The backend response should indicate the
-      // account's role directly — this local toggle is a stand-in until then.
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      onLoginSuccess(role);
-    } catch (e) {
-      setError('Could not log in. Please check your details and try again.');
+      const result = await loginUser(username, password, role);
+      // TODO: store result.token somewhere (e.g. AsyncStorage) for future authenticated requests
+      onLoginSuccess(result.role ?? role);
+    } catch (e: any) {
+      setError(e.message || 'Could not log in. Please check your details and try again.');
     } finally {
       setSubmitting(false);
     }
