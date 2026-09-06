@@ -82,7 +82,7 @@ export default function LoginScreen({ onLoginSuccess, onGoToRegister }: Props) {
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
-            placeholder="Enter your username"
+            placeholder="Enter phone number or Patient ID"
             placeholderTextColor={colors.textMuted}
           />
         </View>
