@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/game-results").hasRole("PATIENT")
                         .requestMatchers(HttpMethod.GET, "/api/game-results/patient/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/progress/patient/**").authenticated()
                         .anyRequest().authenticated())
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
