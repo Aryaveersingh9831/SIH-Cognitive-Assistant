@@ -109,3 +109,77 @@ Results are ordered by `createdAt` descending (newest first).
 | 401 | Missing or invalid JWT. |
 | 403 | Authenticated user requested a `patientId` that is not their own. |
 | 404 | Authenticated user record could not be resolved. |
+
+---
+
+## Progress API
+
+Progress is a **derived view** over saved `GameResult` rows — there is no separate progress table. Metrics are recalculated from live data on every request.
+
+### GET /api/progress/patient/{patientId}
+
+Return calculated progress metrics for a patient.
+
+- **Authentication:** Required (JWT Bearer token).
+- **Authorization:**
+  - A `PATIENT` may only request their own `patientId` (matched against the authenticated user's `patientId`), same rule as the GameResult API.
+  - `CAREGIVER` and `HEALTH_WORKER` access is **not implemented** in this issue — no caregiver-patient relationship model exists yet. These roles currently receive `403` for any `patientId`. The endpoint is deliberately structured (ownership check isolated in `ProgressService`) so authorized caregiver/health-worker access can be added later (Issue #9) without changing this contract.
+  - An unknown/malformed `patientId` also returns `403` rather than `404`, to avoid revealing whether a given patient ID exists.
+
+**Response (200 OK) — patient with results**
+
+```json
+{
+  "patientId": "PT-000001",
+  "totalSessions": 12,
+  "averageAccuracy": 0.78,
+  "currentDifficulty": 2,
+  "averageDifficulty": 1.67,
+  "recentPerformanceTrend": "improving"
+}
+```
+
+**Response (200 OK) — patient with no results**
+
+```json
+{
+  "patientId": "PT-000001",
+  "totalSessions": 0,
+  "averageAccuracy": 0.0,
+  "currentDifficulty": null,
+  "averageDifficulty": null,
+  "recentPerformanceTrend": "insufficient_data"
+}
+```
+
+**Metric definitions**
+
+| Field | Definition |
+|---|---|
+| `totalSessions` | Count of saved `GameResult` rows for the patient. |
+| `averageAccuracy` | Mean of `accuracy` across all saved results (0.0 if none). |
+| `currentDifficulty` | `difficulty` of the most recent result (by `createdAt`); `null` if no results. |
+| `averageDifficulty` | Mean of `difficulty` across all saved results; `null` if no results. |
+| `recentPerformanceTrend` | One of `"improving"`, `"stable"`, `"declining"`, `"insufficient_data"` — see algorithm below. |
+
+**Trend algorithm**
+
+Results are ordered newest-first.
+
+1. If there are fewer than **3** sessions, the trend is `"insufficient_data"`.
+2. Otherwise, split the results in half (integer division): the first half is the **recent group**, the next half is the **previous group**. With an odd total, the single oldest remaining session is dropped from the comparison.
+3. Compare `average(accuracy)` of the recent group against the previous group:
+   - difference `> 0.05` → `"improving"`
+   - difference `< -0.05` → `"declining"`
+   - otherwise → `"stable"`
+
+This keeps the algorithm deterministic and simple, appropriate for demo data volumes. See `ProgressService.calculateTrend` for the implementation.
+
+**Status codes**
+
+| Code | Meaning |
+|---|---|
+| 200 | Progress returned (zero-result patients get the empty-data shape above, not an error). |
+| 401 | Missing or invalid JWT. |
+| 403 | Authenticated user requested a `patientId` that is not their own (includes unknown/malformed IDs). |
+| 404 | Authenticated user record could not be resolved. |
