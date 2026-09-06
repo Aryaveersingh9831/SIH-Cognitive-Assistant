@@ -1,0 +1,19 @@
+{
+  "voice": {
+    "listening": "Listening...",
+    "notUnderstood": "Sorry, I didn't understand that. Please try again.",
+    "micLabel": "Tap and speak",
+    "commands": {
+      "READ_REMINDERS": ["read my reminders", "read reminders", "what are my reminders"],
+      "MARK_DONE": ["i took my medicine", "i took it", "mark as done", "done"],
+      "REPEAT": ["repeat", "say that again", "repeat that"]
+    }
+  },
+  "tts": {
+    "noReminders": "You have no pending reminders right now.",
+    "reminderPrefix": "You have a reminder:",
+    "markedDoneConfirmed": "Great, I've marked that as done.",
+    "nothingToMark": "There's nothing pending to mark as done.",
+    "nothingToRepeat": "There's nothing to repeat yet."
+  }
+}
