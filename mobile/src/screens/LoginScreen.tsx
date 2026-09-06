@@ -37,9 +37,10 @@ export default function LoginScreen({ onLoginSuccess, onGoToRegister }: Props) {
 
     setSubmitting(true);
     try {
-      const result = await loginUser(username, password, role);
+      const result = await loginUser(username, password);
+      console.log('LOGIN RESULT:', result.token, result.role, result.userId, typeof result.userId);
       // TODO: store result.token somewhere (e.g. AsyncStorage) for future authenticated requests
-      onLoginSuccess(result.role ?? role);
+      onLoginSuccess(result.role);
     } catch (e: any) {
       setError(e.message || 'Could not log in. Please check your details and try again.');
     } finally {

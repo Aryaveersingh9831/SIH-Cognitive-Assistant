@@ -11,6 +11,8 @@ import {
   ScrollView,
 } from 'react-native';
 import { colors, spacing, radius, type, touchTarget } from '../theme';
+import { registerUser } from '../api/auth';
+import { API_BASE_URL } from '../api/config';
 
 type Role = 'patient' | 'caregiver';
 
@@ -29,23 +31,38 @@ export default function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props
   const [submitting, setSubmitting] = useState(false);
 
   const handleRegister = async () => {
+    console.log('CHECKPOINT 1: start');
+    console.log('API_BASE_URL is:', API_BASE_URL);
+    console.log('CHECKPOINT 2: after API_BASE_URL log');
     setError('');
+    console.log('CHECKPOINT 3: after setError');
     if (!name.trim() || !phone.trim() || !password.trim()) {
       setError('Please fill in all fields.');
       return;
     }
+    console.log('CHECKPOINT 4: after validation check');
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
       return;
     }
+    console.log('CHECKPOINT 5: after password match check');
 
     setSubmitting(true);
+    console.log('CHECKPOINT 6: after setSubmitting(true)');
     try {
-      // TODO: replace with real API call once backend teammate exposes
-      // POST /api/auth/register. Stubbed for now.
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      onRegisterSuccess(role);
-    } catch (e) {
+      console.log('CHECKPOINT 7: about to call registerUser, typeof registerUser is:', typeof registerUser);
+      const result = await registerUser({
+        name: name.trim(),
+        phone: phone.trim(),
+        password,
+        role,
+      });
+      console.log('CHECKPOINT 8: registerUser returned', result);
+      console.log('REGISTER RESULT:', result.message, result.role, result.patientId);
+      onRegisterSuccess(result.role);
+    } catch (e: any) {
+      console.log('REGISTER ERROR:', e.message);
+      console.log('STACK:', e.stack);
       setError('Could not create your account. Please try again.');
     } finally {
       setSubmitting(false);
