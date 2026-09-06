@@ -1,7 +1,13 @@
 import notifee, { TriggerType, AndroidCategory, AndroidImportance } from '@notifee/react-native';
-import { Reminder } from '../api/reminders';
 
-export async function scheduleReminderAlarm(reminder: Reminder, triggerDate: Date): Promise<string | undefined> {
+// Minimal shape needed to schedule an alarm notification.
+// Kept independent of any specific feature's data model (e.g. reminders)
+// so this utility can be reused by whichever feature needs alarm scheduling.
+export type AlarmContent = {
+  title: string;
+};
+
+export async function scheduleReminderAlarm(reminder: AlarmContent, triggerDate: Date): Promise<string | undefined> {
   return notifee.createTriggerNotification(
     {
       title: reminder.title,

@@ -76,7 +76,7 @@ export default function LoginScreen({ onLoginSuccess, onGoToRegister }: Props) {
         </View>
 
         <View style={styles.field}>
-          <Text style={type.label}>Username or Patient ID</Text>
+          <Text style={type.label}>Phone number or Patient ID</Text>
           <TextInput
             style={styles.input}
             value={username}
