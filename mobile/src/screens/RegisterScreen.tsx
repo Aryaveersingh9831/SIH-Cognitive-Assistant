@@ -11,13 +11,11 @@ import {
   ScrollView,
 } from 'react-native';
 import { colors, spacing, radius, type, touchTarget } from '../theme';
-import { registerUser } from '../api/auth';
+import { registerUser, loginUser, saveAuthToken, Role } from '../api/auth';
 import { API_BASE_URL } from '../api/config';
 
-type Role = 'patient' | 'caregiver';
-
 type Props = {
-  onRegisterSuccess: (role: Role) => void;
+  onRegisterSuccess: (role: Role, token: string) => void;
   onGoToLogin: () => void;
 };
 
@@ -59,7 +57,35 @@ export default function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props
       });
       console.log('CHECKPOINT 8: registerUser returned', result);
       console.log('REGISTER RESULT:', result.message, result.role, result.patientId);
-      onRegisterSuccess(result.role);
+
+      // registerUser's response has no token (see RegisterResponse in
+      // api/auth.ts) — only { message, role, patientId }. So a newly
+      // registered patient has no JWT yet, which is exactly what left
+      // authToken null going into MemoryScreen. To fix that without
+      // touching the backend contract, we immediately log in with the
+      // same credentials right after a successful registration, the
+      // same way LoginScreen does, and hand that real token upstream.
+      console.log('CHECKPOINT 9: registration succeeded, logging in to obtain a token');
+      try {
+        const loginResult = await loginUser(phone.trim(), password);
+        console.log('CHECKPOINT 10: auto-login after register succeeded');
+        // Persist the token the same way LoginScreen does, so a freshly
+        // registered session behaves identically to a normal login for
+        // any screen that reads the token via getAuthToken()/authFetch()
+        // instead of the onRegisterSuccess callback.
+        await saveAuthToken(loginResult.token);
+        onRegisterSuccess(loginResult.role, loginResult.token);
+      } catch (loginError: any) {
+        // Registration itself worked — the account exists — but the
+        // automatic sign-in failed (e.g. backend hiccup). Don't pretend
+        // this succeeded: send them to the login screen to sign in
+        // manually rather than letting them into the app with no token.
+        console.log('AUTO-LOGIN AFTER REGISTER ERROR:', loginError.message);
+        setError(
+          'Your account was created, but we could not log you in automatically. Please log in below.'
+        );
+        onGoToLogin();
+      }
     } catch (e: any) {
       console.log('REGISTER ERROR:', e.message);
       console.log('STACK:', e.stack);
