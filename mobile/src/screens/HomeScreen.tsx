@@ -9,7 +9,6 @@ import { VoiceButton } from './MoodCheckInScreen';
 type Props = {
   patientName?: string;
   onPlayGame: () => void;
-  onReminders: () => void;
   onProgress: () => void;
 };
 
@@ -18,11 +17,6 @@ const TILES = [
     key: 'play',
     label: 'Play a Game',
     hint: 'Fun activities to keep your mind active',
-  },
-  {
-    key: 'reminders',
-    label: 'My Reminders',
-    hint: 'Medicines, water, and appointments',
   },
   {
     key: 'progress',
@@ -34,12 +28,10 @@ const TILES = [
 export default function HomeScreen({
   patientName,
   onPlayGame,
-  onReminders,
   onProgress,
 }: Props) {
   const handlers: Record<(typeof TILES)[number]['key'], () => void> = {
     play: onPlayGame,
-    reminders: onReminders,
     progress: onProgress,
   };
 
@@ -54,7 +46,7 @@ export default function HomeScreen({
             Let's continue where you left off.
           </Text>
         </View>
-        <VoiceButton onPress={() => {}} />
+        <VoiceButton onPress={() => { }} />
       </View>
 
       <View style={styles.tileList}>
