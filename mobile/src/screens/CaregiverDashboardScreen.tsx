@@ -60,7 +60,7 @@ export default function CaregiverDashboardScreen({
   const fetchAllStats = async (list: CaregiverPatient[]) => {
     await Promise.all(
       list.map((patient) => {
-        const key = String(patient.patientId);
+        const key = patient.patientId;
         setStats((prev) => ({ ...prev, [key]: { status: 'loading' } }));
         return getPatientProgress(patient.patientId)
           .then((data) => {
@@ -95,7 +95,7 @@ export default function CaregiverDashboardScreen({
   };
 
   const alertCount = patients.filter((p) => {
-    const s = stats[String(p.patientId)];
+    const s = stats[p.patientId];
     return s?.status === 'ready' && normalizeTrend(s.data.recentPerformanceTrend) === 'down';
   }).length;
 
@@ -126,14 +126,14 @@ export default function CaregiverDashboardScreen({
         ) : null}
 
         {patients.map((patient) => {
-          const s = stats[String(patient.patientId)];
+          const s = stats[patient.patientId];
           const isAlert = s?.status === 'ready' && normalizeTrend(s.data.recentPerformanceTrend) === 'down';
 
           return (
             <TouchableOpacity
               key={patient.patientId}
               style={[styles.card, isAlert && styles.cardAlert]}
-              onPress={() => onSelectPatient(String(patient.patientId), patient.name)}
+              onPress={() => onSelectPatient(patient.patientId, patient.name)}
               accessibilityRole="button"
             >
               <View style={styles.cardRow}>

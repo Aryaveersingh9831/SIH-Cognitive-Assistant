@@ -130,7 +130,7 @@ export async function getPatientGameResults(patientId: string | number): Promise
 // --- /api/caregiver/patients ---
 
 export interface CaregiverPatient {
-  patientId: number;
+  patientId: string;
   name: string;
   lastActive: string | null; // ISO timestamp of newest game result, or null if none
 }
