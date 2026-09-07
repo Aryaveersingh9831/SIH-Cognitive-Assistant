@@ -4,7 +4,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, radius, type, touchTarget } from '../theme';
-import { VoiceButton } from './MoodCheckInScreen';
+import VoiceMicButton from '../components/VoiceMicButton';
+import { CommandId } from '../voice/matchCommand';
 
 type Props = {
   patientName?: string;
@@ -43,6 +44,12 @@ export default function HomeScreen({
     progress: onProgress,
   };
 
+  const handleVoiceCommand = (commandId: CommandId, rawTranscript: string) => {
+    // Voice + multilingual foundation only (this PR). Recognized commands
+    // are not yet connected to real reminder data/actions — see #11.
+    console.log('[HomeScreen] voice command recognized:', commandId, rawTranscript);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -54,7 +61,7 @@ export default function HomeScreen({
             Let's continue where you left off.
           </Text>
         </View>
-        <VoiceButton onPress={() => { }} />
+        <VoiceMicButton onCommand={handleVoiceCommand} />
       </View>
 
       <View style={styles.tileList}>
