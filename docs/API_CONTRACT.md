@@ -86,9 +86,11 @@ the patient's *next* game:
 Retrieve saved game results for a patient, newest first.
 
 - **Authentication:** Required (JWT Bearer token).
-- **Authorization:**
+- **Authorization** (Issue #29 — see [Caregiver API](#caregiver-api-issue-29) below for the relationship model):
   - A `PATIENT` may only request their own `patientId` (matched against the authenticated user's `patientId`).
-  - `CAREGIVER` and `HEALTH_WORKER` access is not implemented in this endpoint yet; no caregiver-patient relationship model exists. These roles currently receive `403` for any `patientId`. The endpoint is structured so authorized caregiver/health-worker access can be added later (see Issue #4 / #9) without changing this contract.
+  - A `CAREGIVER` may request a `patientId` only if a persisted `CaregiverPatient` link exists between the authenticated caregiver and that patient; otherwise `403`.
+  - `HEALTH_WORKER` is not authorized for any `patientId` in this issue — there is no health-worker-patient relationship model yet, so this role always receives `403` here.
+  - An unknown/malformed `patientId` also returns `403` rather than `404`, to avoid revealing whether a given patient exists.
 
 **Response (200 OK)**
 
@@ -127,7 +129,7 @@ Results are ordered by `createdAt` descending (newest first).
 |---|---|
 | 200 | Results returned (possibly empty array). |
 | 401 | Missing or invalid JWT. |
-| 403 | Authenticated user requested a `patientId` that is not their own. |
+| 403 | Authenticated user is not authorized for `patientId` (not their own, and no caregiver link exists), or `patientId` doesn't exist. |
 | 404 | Authenticated user record could not be resolved. |
 
 ---
@@ -141,9 +143,10 @@ Progress is a **derived view** over saved `GameResult` rows — there is no sepa
 Return calculated progress metrics for a patient.
 
 - **Authentication:** Required (JWT Bearer token).
-- **Authorization:**
+- **Authorization** (Issue #29 — see [Caregiver API](#caregiver-api-issue-29) below):
   - A `PATIENT` may only request their own `patientId` (matched against the authenticated user's `patientId`), same rule as the GameResult API.
-  - `CAREGIVER` and `HEALTH_WORKER` access is **not implemented** in this issue — no caregiver-patient relationship model exists yet. These roles currently receive `403` for any `patientId`. The endpoint is deliberately structured (ownership check isolated in `ProgressService`) so authorized caregiver/health-worker access can be added later (Issue #9) without changing this contract.
+  - A `CAREGIVER` may request a `patientId` only if a persisted `CaregiverPatient` link exists between the authenticated caregiver and that patient; otherwise `403`.
+  - `HEALTH_WORKER` is not authorized for any `patientId` in this issue — there is no health-worker-patient relationship model yet, so this role always receives `403` here.
   - An unknown/malformed `patientId` also returns `403` rather than `404`, to avoid revealing whether a given patient ID exists.
 
 **Response (200 OK) — patient with results**
@@ -201,7 +204,7 @@ This keeps the algorithm deterministic and simple, appropriate for demo data vol
 |---|---|
 | 200 | Progress returned (zero-result patients get the empty-data shape above, not an error). |
 | 401 | Missing or invalid JWT. |
-| 403 | Authenticated user requested a `patientId` that is not their own (includes unknown/malformed IDs). |
+| 403 | Authenticated user is not authorized for `patientId` (not their own, and no caregiver link exists), or `patientId` doesn't exist. |
 | 404 | Authenticated user record could not be resolved. |
 
 ---
@@ -328,3 +331,57 @@ Mark a reminder as completed.
 | 401 | Missing or invalid JWT. |
 | 403 | Authenticated user does not own this reminder. |
 | 404 | No reminder exists with the given `id`. |
+
+---
+
+## Caregiver API (Issue #29)
+
+Adds a persistent `CaregiverPatient` relationship (many-to-many between `User` rows: a caregiver can be linked to multiple patients, and a patient can be linked to multiple caregivers), enforced with a database-level unique constraint on `(caregiver_id, patient_id)` to prevent duplicate links. **This issue does not add a public API for creating or removing these links** — they are created out-of-band (e.g. an admin/support flow, or test fixtures); Issue #29 only requires the relationship to exist and be enforceable.
+
+This relationship powers two things:
+1. A new endpoint for a caregiver to list their linked patients.
+2. Caregiver authorization on the existing `GET /api/progress/patient/{patientId}` and `GET /api/game-results/patient/{patientId}` endpoints (documented above).
+
+The authorization rule, shared by all three endpoints via `CaregiverAuthorizationService`:
+
+- `PATIENT` → authorized only for their own `patientId`.
+- `CAREGIVER` → authorized only for a `patientId` with a persisted `CaregiverPatient` link to the authenticated caregiver.
+- `HEALTH_WORKER` (or any other role) → never authorized through this service. There is no health-worker-patient relationship model yet; this is a separate, later piece of work, not part of Issue #29.
+
+### GET /api/caregiver/patients
+
+Return the patients linked to the authenticated caregiver.
+
+- **Authentication:** Required (JWT Bearer token).
+- **Authorization:** Restricted to role `CAREGIVER` (enforced at the security-filter level, like `POST /api/game-results` is restricted to `PATIENT`). `PATIENT` and `HEALTH_WORKER` both receive `403`.
+- The caregiver is taken entirely from the authenticated JWT — there is no way to pass a different caregiver identity in the request.
+
+**Response (200 OK)**
+
+```json
+[
+  {
+    "patientId": "PT-000001",
+    "name": "Ramesh Sharma",
+    "lastActive": "2026-09-08T10:00:00"
+  }
+]
+```
+
+| Field | Definition |
+|---|---|
+| `patientId` | The linked patient's existing `PT-xxxxxx` identifier — the same value accepted by the Progress/GameResult APIs. |
+| `name` | The patient's `User.name`. |
+| `lastActive` | `createdAt` of the patient's most recent `GameResult`, or `null` if they have none. Never derived from reminders or registration time. |
+
+Note: unlike the illustrative `...Z`-suffixed timestamp in the original issue text, `lastActive` is a plain `LocalDateTime` (no timezone), matching every other timestamp in this API (`createdAt`, `scheduledAt`, etc.) — this project does not otherwise handle timezones, so none was introduced here.
+
+**Ordering:** most recently active first (`lastActive` descending, nulls last), then by `name`, then by `patientId` as a final deterministic tie-breaker.
+
+**Status codes**
+
+| Code | Meaning |
+|---|---|
+| 200 | Patients returned (possibly empty array if the caregiver has no linked patients). |
+| 401 | Missing or invalid JWT. |
+| 403 | Authenticated user is not a `CAREGIVER`. |
