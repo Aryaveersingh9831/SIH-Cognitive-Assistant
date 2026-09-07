@@ -1,7 +1,9 @@
 package com.sih.backend.service;
 
+import com.sih.backend.client.MlDifficultyClient;
 import com.sih.backend.dto.GameResultRequest;
 import com.sih.backend.dto.GameResultResponse;
+import com.sih.backend.dto.MlDifficultyRequest;
 import com.sih.backend.entity.GameResult;
 import com.sih.backend.entity.Role;
 import com.sih.backend.entity.User;
@@ -10,6 +12,8 @@ import com.sih.backend.repository.GameResultRepository;
 import com.sih.backend.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,12 +21,21 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class GameResultService {
 
+    private static final Logger log = LoggerFactory.getLogger(GameResultService.class);
+    private static final int MIN_DIFFICULTY = 1;
+    private static final int MAX_DIFFICULTY = 5;
+
     private final GameResultRepository gameResultRepository;
     private final UserRepository userRepository;
+    private final MlDifficultyClient mlDifficultyClient;
 
-    public GameResultService(GameResultRepository gameResultRepository, UserRepository userRepository) {
+    public GameResultService(
+            GameResultRepository gameResultRepository,
+            UserRepository userRepository,
+            MlDifficultyClient mlDifficultyClient) {
         this.gameResultRepository = gameResultRepository;
         this.userRepository = userRepository;
+        this.mlDifficultyClient = mlDifficultyClient;
     }
 
     @Transactional
@@ -42,7 +55,43 @@ public class GameResultService {
 
         gameResultRepository.save(result);
 
-        return toResponse(result);
+        GameResultResponse response = toResponse(result);
+
+        updateDifficultyFromMl(user, request);
+
+        return response;
+    }
+
+    /**
+     * Best-effort: an unreachable/misbehaving ML service must never fail the
+     * GameResult submission that already succeeded above, so every failure
+     * path here is swallowed (and logged) rather than propagated.
+     */
+    private void updateDifficultyFromMl(User user, GameResultRequest request) {
+        try {
+            MlDifficultyRequest mlRequest = new MlDifficultyRequest(
+                    request.getGameType(),
+                    request.getScore(),
+                    request.getAccuracy(),
+                    request.getReactionTime(),
+                    request.getMistakes(),
+                    user.getCurrentDifficulty());
+
+            Integer recommended = mlDifficultyClient.recommendDifficulty(mlRequest);
+
+            if (recommended == null) {
+                return;
+            }
+            if (recommended < MIN_DIFFICULTY || recommended > MAX_DIFFICULTY) {
+                log.warn("Ignoring out-of-range ML recommendation {} for user {}", recommended, user.getId());
+                return;
+            }
+
+            user.setCurrentDifficulty(recommended);
+            userRepository.save(user);
+        } catch (Exception ex) {
+            log.warn("Failed to update currentDifficulty from ML for user {}: {}", user.getId(), ex.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

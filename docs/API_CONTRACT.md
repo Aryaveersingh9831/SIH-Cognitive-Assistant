@@ -59,6 +59,26 @@ Submit a cognitive game result for the authenticated patient.
 | 401 | Missing or invalid JWT. |
 | 403 | Authenticated user is not a `PATIENT`. |
 
+**ML difficulty adaptation (Issue #6)**
+
+After the `GameResult` above is saved, the backend calls the ML difficulty
+service (`POST /predict-difficulty`, Issue #5) to decide the difficulty for
+the patient's *next* game:
+
+- The ML request's `currentDifficulty` is the patient's persistent current
+  difficulty (see Progress API below), **not** the `difficulty` field of the
+  `GameResult` just submitted.
+- A valid recommendation (integer 1–5) becomes the patient's new persistent
+  `currentDifficulty`. `GameResult.difficulty` is historical and is never
+  overwritten.
+- If the ML service is unreachable, times out, errors, or returns a
+  null/malformed/out-of-range recommendation, the failure is logged and the
+  patient's `currentDifficulty` is left unchanged. **This never causes the
+  `GameResult` submission itself to fail** — the 201 response above is
+  returned regardless of ML outcome.
+- The ML service URL is configurable via `ML_SERVICE_URL` (defaults to
+  `http://localhost:8001`); it is never hardcoded.
+
 ---
 
 ### GET /api/game-results/patient/{patientId}
@@ -146,7 +166,7 @@ Return calculated progress metrics for a patient.
   "patientId": "PT-000001",
   "totalSessions": 0,
   "averageAccuracy": 0.0,
-  "currentDifficulty": null,
+  "currentDifficulty": 1,
   "averageDifficulty": null,
   "recentPerformanceTrend": "insufficient_data"
 }
@@ -158,8 +178,8 @@ Return calculated progress metrics for a patient.
 |---|---|
 | `totalSessions` | Count of saved `GameResult` rows for the patient. |
 | `averageAccuracy` | Mean of `accuracy` across all saved results (0.0 if none). |
-| `currentDifficulty` | `difficulty` of the most recent result (by `createdAt`); `null` if no results. |
-| `averageDifficulty` | Mean of `difficulty` across all saved results; `null` if no results. |
+| `currentDifficulty` | The patient's persistent current difficulty (`User.currentDifficulty`), used as the difficulty for the patient's *next* game. Defaults to `1` for a new patient and is updated only by a valid ML recommendation after a `GameResult` submission (see Issue #6 above) — it is **not** derived from `GameResult.difficulty`. |
+| `averageDifficulty` | Mean of `difficulty` across all saved results (historical session difficulties); `null` if no results. |
 | `recentPerformanceTrend` | One of `"improving"`, `"stable"`, `"declining"`, `"insufficient_data"` — see algorithm below. |
 
 **Trend algorithm**

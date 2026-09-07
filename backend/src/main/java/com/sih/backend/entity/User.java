@@ -13,6 +13,8 @@ import jakarta.persistence.Table;
 @Table(name = "users")
 public class User {
 
+    public static final int DEFAULT_DIFFICULTY = 1;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -33,6 +35,9 @@ public class User {
     @Column(unique = true)
     private String patientId;
 
+    @Column(name = "current_difficulty")
+    private Integer currentDifficulty = DEFAULT_DIFFICULTY;
+
     protected User() {
     }
 
@@ -42,6 +47,7 @@ public class User {
         this.passwordHash = passwordHash;
         this.role = role;
         this.patientId = patientId;
+        this.currentDifficulty = DEFAULT_DIFFICULTY;
     }
 
     public Long getId() {
@@ -86,5 +92,13 @@ public class User {
 
     public void setPatientId(String patientId) {
         this.patientId = patientId;
+    }
+
+    public int getCurrentDifficulty() {
+        return currentDifficulty == null ? DEFAULT_DIFFICULTY : currentDifficulty;
+    }
+
+    public void setCurrentDifficulty(int currentDifficulty) {
+        this.currentDifficulty = currentDifficulty;
     }
 }
