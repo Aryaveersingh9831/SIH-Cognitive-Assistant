@@ -46,7 +46,7 @@ def test_valid_prediction_returns_expected_shape():
     [
         ("accuracy", 1.5),          # accuracy must be 0.0-1.0
         ("accuracy", -0.1),
-        ("reactionTime", -100),     # must be > 0
+        ("reactionTime", -100),     # must be >= 0
         ("mistakes", -1),           # must be >= 0
         ("currentDifficulty", 0),   # must be 1-5
         ("currentDifficulty", 6),
