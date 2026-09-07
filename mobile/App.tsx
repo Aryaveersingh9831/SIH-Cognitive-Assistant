@@ -12,7 +12,6 @@ import MoodCheckInScreen from './src/screens/MoodCheckInScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import GameSelectionScreen, { GameType } from './src/screens/GameSelectionScreen';
 import CaregiverDashboardScreen from './src/screens/CaregiverDashboardScreen';
-import RemindersScreen from './src/screens/RemindersScreen';
 import AlarmScreen from './src/screens/AlarmScreen';
 import { setupAlarmChannel } from './src/notifications/alarmChannel';
 
@@ -24,7 +23,6 @@ export type RootStackParamList = {
   Home: undefined;
   GameSelection: undefined;
   CaregiverDashboard: undefined;
-  Reminders: undefined;
   AlarmScreen: { title: string };
 };
 
@@ -89,7 +87,9 @@ export default function App() {
           {({ navigation }) => (
             <HomeScreen
               onPlayGame={() => navigation.navigate('GameSelection')}
-              onReminders={() => navigation.navigate('Reminders')}
+              onReminders={() => {
+                // TODO: navigate to Reminders screen once it exists (separate issue)
+              }}
               onProgress={() => {
                 // TODO: navigate to Progress screen once it exists
               }}
@@ -119,8 +119,6 @@ export default function App() {
             />
           )}
         </Stack.Screen>
-
-        <Stack.Screen name="Reminders" component={RemindersScreen} />
 
         <Stack.Screen
           name="AlarmScreen"
