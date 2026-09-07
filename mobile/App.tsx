@@ -114,8 +114,8 @@ export default function App() {
         <Stack.Screen name="CaregiverDashboard">
           {({ navigation }) => (
             <CaregiverDashboardScreen
-              onSelectPatient={(patientId) => {
-                navigation.navigate('CaregiverPatientDetail', { patientId });
+              onSelectPatient={(patientId, patientName) => {
+                navigation.navigate('CaregiverPatientDetail', { patientId, patientName });
               }}
             />
           )}

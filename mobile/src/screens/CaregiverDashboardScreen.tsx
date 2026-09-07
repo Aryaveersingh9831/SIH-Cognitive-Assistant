@@ -5,30 +5,22 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { colors, spacing, radius, type, touchTarget } from '../theme';
-import { getPatientProgress, ProgressResponse } from '../api/auth';
-
-// Identity fields only — real values, but the LIST itself is still hardcoded
-// because the backend has no "GET caregiver's patients" endpoint yet.
-// TODO: replace MOCK_PATIENTS with a real API call once that endpoint exists.
-// IMPORTANT: swap these ids for real numeric patient IDs that exist in your
-// test DB, or every progress/game-results call below will 404.
-export type PatientSummary = {
-  id: string;
-  name: string;
-  lastActive: string;
-};
+import { getPatientProgress, ProgressResponse, getCaregiverPatients, CaregiverPatient } from '../api/auth';
 
 type Props = {
   caregiverName?: string;
-  patients?: PatientSummary[];
-  onSelectPatient: (patientId: string) => void;
+  onSelectPatient: (patientId: string, patientName: string) => void;
 };
 
-const MOCK_PATIENTS: PatientSummary[] = [
-  { id: '1', name: 'Ramesh Sharma', lastActive: 'Today' },
-  { id: '2', name: 'Kamala Devi', lastActive: '2 days ago' },
-  { id: '3', name: 'Bipin Rai', lastActive: 'Yesterday' },
-];
+function formatLastActive(raw: string | null): string {
+  if (!raw) return 'No activity yet';
+  const date = new Date(raw);
+  if (isNaN(date.getTime())) return raw;
+  const diffDays = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  return `${diffDays} days ago`;
+}
 
 type Trend = 'up' | 'flat' | 'down';
 
@@ -50,41 +42,60 @@ type StatsState = Record<
   { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: ProgressResponse }
 >;
 
+type PatientListState =
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'ready'; data: CaregiverPatient[] };
+
 export default function CaregiverDashboardScreen({
   caregiverName,
-  patients = MOCK_PATIENTS,
   onSelectPatient,
 }: Props) {
+  const [patientList, setPatientList] = useState<PatientListState>({ status: 'loading' });
   const [stats, setStats] = useState<StatsState>({});
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchAllStats = async () => {
+  const patients = patientList.status === 'ready' ? patientList.data : [];
+
+  const fetchAllStats = async (list: CaregiverPatient[]) => {
     await Promise.all(
-      patients.map((patient) => {
-        setStats((prev) => ({ ...prev, [patient.id]: { status: 'loading' } }));
-        return getPatientProgress(patient.id)
+      list.map((patient) => {
+        const key = String(patient.patientId);
+        setStats((prev) => ({ ...prev, [key]: { status: 'loading' } }));
+        return getPatientProgress(patient.patientId)
           .then((data) => {
-            setStats((prev) => ({ ...prev, [patient.id]: { status: 'ready', data } }));
+            setStats((prev) => ({ ...prev, [key]: { status: 'ready', data } }));
           })
           .catch(() => {
-            setStats((prev) => ({ ...prev, [patient.id]: { status: 'error' } }));
+            setStats((prev) => ({ ...prev, [key]: { status: 'error' } }));
           });
       })
     );
   };
 
+  const fetchEverything = async () => {
+    setPatientList({ status: 'loading' });
+    try {
+      const list = await getCaregiverPatients();
+      setPatientList({ status: 'ready', data: list });
+      await fetchAllStats(list);
+    } catch {
+      setPatientList({ status: 'error' });
+    }
+  };
+
   useEffect(() => {
-    fetchAllStats();
-  }, [patients]);
+    fetchEverything();
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchAllStats();
+    await fetchEverything();
     setRefreshing(false);
   };
 
   const alertCount = patients.filter((p) => {
-    const s = stats[p.id];
+    const s = stats[String(p.patientId)];
     return s?.status === 'ready' && normalizeTrend(s.data.recentPerformanceTrend) === 'down';
   }).length;
 
@@ -106,22 +117,30 @@ export default function CaregiverDashboardScreen({
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
       >
+        {patientList.status === 'loading' ? (
+          <ActivityIndicator color={colors.primary} />
+        ) : patientList.status === 'error' ? (
+          <Text style={styles.alertText}>Couldn't load your patient list.</Text>
+        ) : patients.length === 0 ? (
+          <Text style={type.bodyMuted}>No patients linked to your account yet.</Text>
+        ) : null}
+
         {patients.map((patient) => {
-          const s = stats[patient.id];
+          const s = stats[String(patient.patientId)];
           const isAlert = s?.status === 'ready' && normalizeTrend(s.data.recentPerformanceTrend) === 'down';
 
           return (
             <TouchableOpacity
-              key={patient.id}
+              key={patient.patientId}
               style={[styles.card, isAlert && styles.cardAlert]}
-              onPress={() => onSelectPatient(patient.id)}
+              onPress={() => onSelectPatient(String(patient.patientId), patient.name)}
               accessibilityRole="button"
             >
               <View style={styles.cardRow}>
                 <View style={styles.cardMain}>
                   <View style={styles.cardTop}>
                     <Text style={styles.patientName}>{patient.name}</Text>
-                    <Text style={styles.lastActive}>{patient.lastActive}</Text>
+                    <Text style={styles.lastActive}>{formatLastActive(patient.lastActive)}</Text>
                   </View>
 
                   {!s || s.status === 'loading' ? (

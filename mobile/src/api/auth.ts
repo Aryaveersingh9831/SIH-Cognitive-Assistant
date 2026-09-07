@@ -126,3 +126,16 @@ export async function getPatientGameResults(patientId: string | number): Promise
   const response = await authFetch(`/api/game-results/patient/${patientId}`);
   return response.json();
 }
+
+// --- /api/caregiver/patients ---
+
+export interface CaregiverPatient {
+  patientId: number;
+  name: string;
+  lastActive: string | null; // ISO timestamp of newest game result, or null if none
+}
+
+export async function getCaregiverPatients(): Promise<CaregiverPatient[]> {
+  const response = await authFetch('/api/caregiver/patients');
+  return response.json();
+}
