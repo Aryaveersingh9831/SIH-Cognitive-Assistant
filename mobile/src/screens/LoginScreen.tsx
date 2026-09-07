@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { colors, spacing, radius, type, touchTarget } from '../theme';
-import { loginUser } from '../api/auth';
+import { loginUser, saveAuthToken } from '../api/auth';
 
 type Role = 'patient' | 'caregiver';
 
@@ -38,8 +38,7 @@ export default function LoginScreen({ onLoginSuccess, onGoToRegister }: Props) {
     setSubmitting(true);
     try {
       const result = await loginUser(username, password);
-      console.log('LOGIN RESULT:', result.token, result.role, result.userId, typeof result.userId);
-      // TODO: store result.token somewhere (e.g. AsyncStorage) for future authenticated requests
+      await saveAuthToken(result.token);
       onLoginSuccess(result.role);
     } catch (e: any) {
       setError(e.message || 'Could not log in. Please check your details and try again.');
