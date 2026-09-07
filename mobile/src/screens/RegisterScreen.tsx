@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { colors, spacing, radius, type, touchTarget } from '../theme';
-import { registerUser, loginUser, Role } from '../api/auth';
+import { registerUser, loginUser, saveAuthToken, Role } from '../api/auth';
 import { API_BASE_URL } from '../api/config';
 
 type Props = {
@@ -69,6 +69,11 @@ export default function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props
       try {
         const loginResult = await loginUser(phone.trim(), password);
         console.log('CHECKPOINT 10: auto-login after register succeeded');
+        // Persist the token the same way LoginScreen does, so a freshly
+        // registered session behaves identically to a normal login for
+        // any screen that reads the token via getAuthToken()/authFetch()
+        // instead of the onRegisterSuccess callback.
+        await saveAuthToken(loginResult.token);
         onRegisterSuccess(loginResult.role, loginResult.token);
       } catch (loginError: any) {
         // Registration itself worked — the account exists — but the
