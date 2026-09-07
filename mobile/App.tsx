@@ -12,6 +12,7 @@ import MoodCheckInScreen from './src/screens/MoodCheckInScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import GameSelectionScreen, { GameType } from './src/screens/GameSelectionScreen';
 import CaregiverDashboardScreen from './src/screens/CaregiverDashboardScreen';
+import CaregiverPatientDetailScreen from './src/screens/CaregiverPatientDetailScreen';
 import AlarmScreen from './src/screens/AlarmScreen';
 import { setupAlarmChannel } from './src/notifications/alarmChannel';
 
@@ -23,6 +24,7 @@ export type RootStackParamList = {
   Home: undefined;
   GameSelection: undefined;
   CaregiverDashboard: undefined;
+  CaregiverPatientDetail: { patientId: string; patientName?: string };
   AlarmScreen: { title: string };
 };
 
@@ -110,12 +112,21 @@ export default function App() {
         </Stack.Screen>
 
         <Stack.Screen name="CaregiverDashboard">
-          {() => (
+          {({ navigation }) => (
             <CaregiverDashboardScreen
               onSelectPatient={(patientId) => {
-                console.log('Selected patient:', patientId);
-                // TODO: navigate to a CaregiverPatientDetail screen once it exists
+                navigation.navigate('CaregiverPatientDetail', { patientId });
               }}
+            />
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="CaregiverPatientDetail">
+          {({ navigation, route }) => (
+            <CaregiverPatientDetailScreen
+              patientId={route.params.patientId}
+              patientName={route.params.patientName}
+              onBack={() => navigation.goBack()}
             />
           )}
         </Stack.Screen>
