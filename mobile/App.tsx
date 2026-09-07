@@ -99,13 +99,14 @@ export default function App() {
         <Stack.Screen name="Register">
           {({ navigation }) => (
             <RegisterScreen
-              onRegisterSuccess={(role) =>
+              onRegisterSuccess={(role, token) => {
+                setAuthToken(token);
                 navigation.navigate(
                   role === 'caregiver'
                     ? 'CaregiverDashboard'
                     : 'Mood'
-                )
-              }
+                );
+              }}
               onGoToLogin={() =>
                 navigation.navigate('Login')
               }
