@@ -203,3 +203,128 @@ This keeps the algorithm deterministic and simple, appropriate for demo data vol
 | 401 | Missing or invalid JWT. |
 | 403 | Authenticated user requested a `patientId` that is not their own (includes unknown/malformed IDs). |
 | 404 | Authenticated user record could not be resolved. |
+
+---
+
+## Reminder API (Issue #10)
+
+Reminders (`medicine`, `hydration`, `activity`, `appointment`) belong to one patient (`User`). This issue implements creation, retrieval, and completion only — offline sync, local notifications, and caregiver missed-reminder alerts are out of scope (Issue #16).
+
+**Authorization today:** identical to the GameResult/Progress APIs — a `PATIENT` may only create/view/complete reminders for their own `patientId` (matched against the authenticated user's `patientId`). There is no caregiver-patient relationship model yet, so `CAREGIVER` and `HEALTH_WORKER` currently receive `403` for any `patientId`. The ownership check is isolated in `ReminderService.isOwner` so it can be extended once a caregiver-patient relationship exists, without changing this contract.
+
+### POST /api/reminders
+
+Create a reminder for a patient.
+
+- **Authentication:** Required (JWT Bearer token).
+- **Authorization:** The authenticated user must own `patientId` (see above).
+
+**Request body**
+
+```json
+{
+  "patientId": "PT-000001",
+  "type": "medicine",
+  "title": "Take morning medicine",
+  "scheduledAt": "2026-09-08T09:00:00"
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `patientId` | string | Required, non-blank. Must be the authenticated user's own `patientId`. |
+| `type` | string | Required. One of `medicine`, `hydration`, `activity`, `appointment`. |
+| `title` | string | Required, non-blank. |
+| `scheduledAt` | string (ISO-8601 `LocalDateTime`) | Required, valid date-time. |
+
+**Response (201 Created)**
+
+```json
+{
+  "id": 1,
+  "patientId": "PT-000001",
+  "type": "medicine",
+  "title": "Take morning medicine",
+  "scheduledAt": "2026-09-08T09:00:00",
+  "completed": false,
+  "createdAt": "2026-09-08T08:00:00",
+  "completedAt": null
+}
+```
+
+**Status codes**
+
+| Code | Meaning |
+|---|---|
+| 201 | Reminder created. |
+| 400 | Validation failure (blank `title`/`patientId`, missing/invalid `scheduledAt`, unsupported `type`). |
+| 401 | Missing or invalid JWT. |
+| 403 | `patientId` is not the authenticated user's own. |
+
+---
+
+### GET /api/reminders/patient/{patientId}
+
+Retrieve a patient's reminders, ordered by `scheduledAt` ascending (soonest first).
+
+- **Authentication:** Required (JWT Bearer token).
+- **Authorization:** Same ownership rule as above.
+
+**Response (200 OK)**
+
+```json
+[
+  {
+    "id": 1,
+    "patientId": "PT-000001",
+    "type": "medicine",
+    "title": "Take morning medicine",
+    "scheduledAt": "2026-09-08T09:00:00",
+    "completed": false,
+    "createdAt": "2026-09-08T08:00:00",
+    "completedAt": null
+  }
+]
+```
+
+**Status codes**
+
+| Code | Meaning |
+|---|---|
+| 200 | Reminders returned (possibly empty array). |
+| 401 | Missing or invalid JWT. |
+| 403 | `patientId` is not the authenticated user's own. |
+
+---
+
+### PATCH /api/reminders/{id}/complete
+
+Mark a reminder as completed.
+
+- **Authentication:** Required (JWT Bearer token).
+- **Authorization:** The authenticated user must own the reminder (i.e. be the patient it belongs to).
+- **Idempotent:** completing an already-completed reminder returns `200` with the original `completedAt` unchanged — it does not error or overwrite the completion time.
+
+**Response (200 OK)**
+
+```json
+{
+  "id": 1,
+  "patientId": "PT-000001",
+  "type": "medicine",
+  "title": "Take morning medicine",
+  "scheduledAt": "2026-09-08T09:00:00",
+  "completed": true,
+  "createdAt": "2026-09-08T08:00:00",
+  "completedAt": "2026-09-08T09:05:00"
+}
+```
+
+**Status codes**
+
+| Code | Meaning |
+|---|---|
+| 200 | Reminder completed (or already was). |
+| 401 | Missing or invalid JWT. |
+| 403 | Authenticated user does not own this reminder. |
+| 404 | No reminder exists with the given `id`. |
