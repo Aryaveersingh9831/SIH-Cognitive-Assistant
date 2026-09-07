@@ -1,11 +1,12 @@
 // LanguageSelectScreen.tsx
 // Shown once, before Login/Register — sets the language used to localize
-// every screen's text (wire this into i18next or react-native-localize).
+// every screen's text, wired to i18next.
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, radius, type, touchTarget } from '../theme';
+import i18n, { SupportedLanguage } from '../i18n/i18n';
 
-const LANGUAGES = [
+const LANGUAGES: { code: SupportedLanguage; label: string }[] = [
   { code: 'en', label: 'English' },
   { code: 'hi', label: 'हिंदी' },
   { code: 'as', label: 'অসমীয়া' }, // Assamese — Assam
@@ -17,7 +18,12 @@ type Props = {
 };
 
 export default function LanguageSelectScreen({ onContinue }: Props) {
-  const [selected, setSelected] = useState('en');
+  const [selected, setSelected] = useState<SupportedLanguage>('en');
+
+  const handleSelect = (code: SupportedLanguage) => {
+    setSelected(code);
+    i18n.changeLanguage(code);
+  };
 
   return (
     <View style={styles.container}>
@@ -33,7 +39,7 @@ export default function LanguageSelectScreen({ onContinue }: Props) {
             <TouchableOpacity
               key={lang.code}
               style={[styles.tile, isSelected && styles.tileSelected]}
-              onPress={() => setSelected(lang.code)}
+              onPress={() => handleSelect(lang.code)}
             >
               <Text
                 style={[styles.tileText, isSelected && styles.tileTextSelected]}
