@@ -19,7 +19,7 @@ class DifficultyPredictionRequest(BaseModel):
     game_type: str = Field(alias="gameType")
     score: int = Field(ge=0)
     accuracy: float = Field(ge=0.0, le=1.0)
-    reaction_time: float = Field(alias="reactionTime", gt=0)
+    reaction_time: float = Field(alias="reactionTime", ge=0)
     mistakes: int = Field(ge=0)
     current_difficulty: int = Field(alias="currentDifficulty", ge=1, le=5)
 

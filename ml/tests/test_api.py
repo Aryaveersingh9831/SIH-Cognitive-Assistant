@@ -47,7 +47,6 @@ def test_valid_prediction_returns_expected_shape():
         ("accuracy", 1.5),          # accuracy must be 0.0-1.0
         ("accuracy", -0.1),
         ("reactionTime", -100),     # must be > 0
-        ("reactionTime", 0),
         ("mistakes", -1),           # must be >= 0
         ("currentDifficulty", 0),   # must be 1-5
         ("currentDifficulty", 6),
@@ -59,6 +58,16 @@ def test_invalid_input_rejected(field, bad_value):
     payload[field] = bad_value
     response = client.post("/predict-difficulty", json=payload)
     assert response.status_code == 422
+
+
+def test_reaction_time_zero_is_valid():
+    """reactionTime is non-negative per Issue #5's contract, so 0 must be accepted."""
+    payload = dict(VALID_PAYLOAD)
+    payload["reactionTime"] = 0
+    response = client.post("/predict-difficulty", json=payload)
+    assert response.status_code == 200
+    recommended = response.json()["recommendedDifficulty"]
+    assert 1 <= recommended <= 5
 
 
 def test_missing_field_rejected():
