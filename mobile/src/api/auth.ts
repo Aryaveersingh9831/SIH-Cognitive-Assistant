@@ -56,3 +56,73 @@ export async function registerUser(data: RegisterRequest): Promise<RegisterRespo
 
   return response.json();
 }
+
+// --- Token storage ---
+
+export async function saveAuthToken(token: string): Promise<void> {
+  await AsyncStorage.setItem(TOKEN_KEY, token);
+}
+
+export async function getAuthToken(): Promise<string | null> {
+  return AsyncStorage.getItem(TOKEN_KEY);
+}
+
+export async function clearAuthToken(): Promise<void> {
+  await AsyncStorage.removeItem(TOKEN_KEY);
+}
+
+async function authFetch(path: string): Promise<Response> {
+  const token = await getAuthToken();
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || `Request failed (${response.status})`);
+  }
+  return response;
+}
+
+// --- /api/auth/me ---
+
+export interface MeResponse {
+  userId: number;
+  role: Role;
+}
+
+export async function getMe(): Promise<MeResponse> {
+  const response = await authFetch('/api/auth/me');
+  return response.json();
+}
+
+// --- /api/progress/patient/{patientId} ---
+
+export interface ProgressResponse {
+  totalSessions: number;
+  averageAccuracy: number;
+  currentDifficulty: number;
+  averageDifficulty: number;
+  recentPerformanceTrend: string; // e.g. "improving" | "declining" | "stable"
+}
+
+export async function getPatientProgress(patientId: string | number): Promise<ProgressResponse> {
+  const response = await authFetch(`/api/progress/patient/${patientId}`);
+  return response.json();
+}
+
+// --- /api/game-results/patient/{patientId} ---
+
+export interface GameResult {
+  gameType: string;
+  score: number;
+  accuracy: number;
+  reactionTime: number;
+  mistakes: number;
+  difficulty: number;
+  timestamp: string;
+}
+
+export async function getPatientGameResults(patientId: string | number): Promise<GameResult[]> {
+  const response = await authFetch(`/api/game-results/patient/${patientId}`);
+  return response.json();
+}
