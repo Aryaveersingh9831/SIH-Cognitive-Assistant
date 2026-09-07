@@ -2,7 +2,6 @@ package com.sih.backend.service;
 
 import com.sih.backend.dto.ProgressResponse;
 import com.sih.backend.entity.GameResult;
-import com.sih.backend.entity.Role;
 import com.sih.backend.entity.User;
 import com.sih.backend.exception.PatientNotFoundException;
 import com.sih.backend.repository.GameResultRepository;
@@ -28,10 +27,15 @@ public class ProgressService {
 
     private final GameResultRepository gameResultRepository;
     private final UserRepository userRepository;
+    private final CaregiverAuthorizationService caregiverAuthorizationService;
 
-    public ProgressService(GameResultRepository gameResultRepository, UserRepository userRepository) {
+    public ProgressService(
+            GameResultRepository gameResultRepository,
+            UserRepository userRepository,
+            CaregiverAuthorizationService caregiverAuthorizationService) {
         this.gameResultRepository = gameResultRepository;
         this.userRepository = userRepository;
+        this.caregiverAuthorizationService = caregiverAuthorizationService;
     }
 
     @Transactional(readOnly = true)
@@ -39,24 +43,26 @@ public class ProgressService {
         User authenticatedUser = userRepository.findById(authenticatedUserId)
                 .orElseThrow(() -> new PatientNotFoundException("Patient not found"));
 
-        boolean isOwner = authenticatedUser.getRole() == Role.PATIENT
-                && authenticatedUser.getPatientId() != null
-                && authenticatedUser.getPatientId().equals(requestedPatientId);
+        // An unknown/malformed patientId is treated as 403, not 404, so this endpoint
+        // never reveals whether a given patientId actually exists.
+        User targetPatient = userRepository
+                .findByPatientId(requestedPatientId)
+                .orElseThrow(() -> new AccessDeniedException("You are not authorized to view this progress data"));
 
-        if (!isOwner) {
+        if (!caregiverAuthorizationService.isAuthorized(authenticatedUser, targetPatient)) {
             throw new AccessDeniedException("You are not authorized to view this progress data");
         }
 
-        List<GameResult> results = gameResultRepository.findByUserOrderByCreatedAtDesc(authenticatedUser);
+        List<GameResult> results = gameResultRepository.findByUserOrderByCreatedAtDesc(targetPatient);
 
         if (results.isEmpty()) {
             return new ProgressResponse(
-                    requestedPatientId, 0, 0.0, authenticatedUser.getCurrentDifficulty(), null, TREND_INSUFFICIENT_DATA);
+                    requestedPatientId, 0, 0.0, targetPatient.getCurrentDifficulty(), null, TREND_INSUFFICIENT_DATA);
         }
 
         int totalSessions = results.size();
         double averageAccuracy = results.stream().mapToDouble(GameResult::getAccuracy).average().orElse(0.0);
-        int currentDifficulty = authenticatedUser.getCurrentDifficulty();
+        int currentDifficulty = targetPatient.getCurrentDifficulty();
         double averageDifficulty = results.stream().mapToInt(GameResult::getDifficulty).average().orElse(0.0);
         String trend = calculateTrend(results);
 

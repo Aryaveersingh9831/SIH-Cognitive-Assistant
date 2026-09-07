@@ -5,7 +5,6 @@ import com.sih.backend.dto.GameResultRequest;
 import com.sih.backend.dto.GameResultResponse;
 import com.sih.backend.dto.MlDifficultyRequest;
 import com.sih.backend.entity.GameResult;
-import com.sih.backend.entity.Role;
 import com.sih.backend.entity.User;
 import com.sih.backend.exception.PatientNotFoundException;
 import com.sih.backend.repository.GameResultRepository;
@@ -28,14 +27,17 @@ public class GameResultService {
     private final GameResultRepository gameResultRepository;
     private final UserRepository userRepository;
     private final MlDifficultyClient mlDifficultyClient;
+    private final CaregiverAuthorizationService caregiverAuthorizationService;
 
     public GameResultService(
             GameResultRepository gameResultRepository,
             UserRepository userRepository,
-            MlDifficultyClient mlDifficultyClient) {
+            MlDifficultyClient mlDifficultyClient,
+            CaregiverAuthorizationService caregiverAuthorizationService) {
         this.gameResultRepository = gameResultRepository;
         this.userRepository = userRepository;
         this.mlDifficultyClient = mlDifficultyClient;
+        this.caregiverAuthorizationService = caregiverAuthorizationService;
     }
 
     @Transactional
@@ -99,15 +101,17 @@ public class GameResultService {
         User authenticatedUser = userRepository.findById(authenticatedUserId)
                 .orElseThrow(() -> new PatientNotFoundException("Patient not found"));
 
-        boolean isOwner = authenticatedUser.getRole() == Role.PATIENT
-                && authenticatedUser.getPatientId() != null
-                && authenticatedUser.getPatientId().equals(requestedPatientId);
+        // An unknown/malformed patientId is treated as 403, not 404, so this endpoint
+        // never reveals whether a given patientId actually exists.
+        User targetPatient = userRepository
+                .findByPatientId(requestedPatientId)
+                .orElseThrow(() -> new AccessDeniedException("You are not authorized to view these results"));
 
-        if (!isOwner) {
+        if (!caregiverAuthorizationService.isAuthorized(authenticatedUser, targetPatient)) {
             throw new AccessDeniedException("You are not authorized to view these results");
         }
 
-        return gameResultRepository.findByUserOrderByCreatedAtDesc(authenticatedUser).stream()
+        return gameResultRepository.findByUserOrderByCreatedAtDesc(targetPatient).stream()
                 .map(this::toResponse)
                 .toList();
     }
