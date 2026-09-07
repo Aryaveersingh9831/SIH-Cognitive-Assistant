@@ -210,7 +210,7 @@ This keeps the algorithm deterministic and simple, appropriate for demo data vol
 
 Reminders (`medicine`, `hydration`, `activity`, `appointment`) belong to one patient (`User`). This issue implements creation, retrieval, and completion only — offline sync, local notifications, and caregiver missed-reminder alerts are out of scope (Issue #16).
 
-**Authorization today:** identical to the GameResult/Progress APIs — a `PATIENT` may only create/view/complete reminders for their own `patientId` (matched against the authenticated user's `patientId`). There is no caregiver-patient relationship model yet, so `CAREGIVER` and `HEALTH_WORKER` currently receive `403` for any `patientId`. The ownership check is isolated in `ReminderService.isOwner` so it can be extended once a caregiver-patient relationship exists, without changing this contract.
+**Authorization today:** Current implementation supports patient-owned reminders. Caregiver/health-worker access requires the separate caregiver-patient authorization work and is not implemented yet. Ownership is checked identically to the GameResult/Progress APIs — a `PATIENT` may only create/view/complete reminders for their own `patientId` (matched against the authenticated user's `patientId`). There is no caregiver-patient relationship model yet, so `CAREGIVER` and `HEALTH_WORKER` currently receive `403` for any `patientId`. The ownership check is isolated in `ReminderService.isOwner` so it can be extended once a caregiver-patient relationship exists, without changing this contract.
 
 ### POST /api/reminders
 
