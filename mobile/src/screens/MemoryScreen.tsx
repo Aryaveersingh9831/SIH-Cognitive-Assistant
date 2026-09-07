@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 
 import { colors, spacing, radius, type } from '../theme';
+import { submitGameResult } from '../api/gameResults';
 
 type MemoryLevel = 1 | 2 | 3 | 4 | 5;
 
@@ -60,11 +61,12 @@ const MEMORY_LEVELS: Record<
 
 type Props = {
   onBack: () => void;
+  authToken: string | null;
 };
 
 type Phase = 'ready' | 'memorize' | 'answer' | 'result';
 
-export default function MemoryScreen({ onBack }: Props) {
+export default function MemoryScreen({ onBack, authToken }: Props) {
   const [level, setLevel] = useState<MemoryLevel>(2);
   const [phase, setPhase] = useState<Phase>('ready');
 
@@ -80,6 +82,9 @@ export default function MemoryScreen({ onBack }: Props) {
 
   const [startTime, setStartTime] = useState<number | null>(null);
   const [reactionTime, setReactionTime] = useState(0);
+
+  type SubmitStatus = 'idle' | 'submitting' | 'saved' | 'error';
+  const [submitStatus, setSubmitStatus] = useState<SubmitStatus>('idle');
 
   function createRound(selectedLevel: MemoryLevel) {
     const settings = MEMORY_LEVELS[selectedLevel];
@@ -101,6 +106,7 @@ export default function MemoryScreen({ onBack }: Props) {
     setMistakes(0);
     setReactionTime(0);
     setStartTime(null);
+    setSubmitStatus('idle');
   }
 
   useEffect(() => {
@@ -139,30 +145,67 @@ export default function MemoryScreen({ onBack }: Props) {
       return;
     }
 
-    const answerTime =
-      startTime === null
-        ? 0
-        : (Date.now() - startTime) / 1000;
-
-    setReactionTime(answerTime);
+    // Milliseconds, matching what the backend expects — do not divide by
+    // 1000 here. (Display-only conversion to seconds happens on the result
+    // screen instead.)
+    const answerTimeMs =
+      startTime === null ? 0 : Date.now() - startTime;
 
     const isCorrect = roundObjects.includes(object);
 
-    if (isCorrect) {
-      setScore((currentScore) => currentScore + 1);
-    } else {
-      setMistakes((currentMistakes) => currentMistakes + 1);
-    }
+    // Compute the final score/mistakes synchronously rather than reading
+    // the score/mistakes state right after calling setScore/setMistakes.
+    // Those setters don't apply until the next render, so on the very last
+    // selection the old code could flip phase to 'result' — and, in this
+    // PR, fire off the API submission — using a score/accuracy that was
+    // one point behind. Using local finalScore/finalMistakes values below
+    // keeps the displayed result and the submitted result both correct no
+    // matter how/when React decides to batch the state updates.
+    const finalScore = isCorrect ? score + 1 : score;
+    const finalMistakes = isCorrect ? mistakes : mistakes + 1;
+
+    setReactionTime(answerTimeMs);
+    setScore(finalScore);
+    setMistakes(finalMistakes);
 
     const updatedSelection = [...selected, object];
-
     setSelected(updatedSelection);
 
-    if (
-      updatedSelection.length ===
-      MEMORY_LEVELS[level].objectCount
-    ) {
+    const isLastSelection =
+      updatedSelection.length === MEMORY_LEVELS[level].objectCount;
+
+    if (isLastSelection) {
       setPhase('result');
+      submitResult(finalScore, finalMistakes, answerTimeMs);
+    }
+  }
+
+  async function submitResult(
+    finalScore: number,
+    finalMistakes: number,
+    finalReactionTimeMs: number
+  ) {
+    if (!authToken) {
+      // Not logged in with a patient session (or no JWT was captured) —
+      // nothing to attach the result to, so skip silently rather than
+      // blocking the result screen.
+      return;
+    }
+
+    setSubmitStatus('submitting');
+
+    try {
+      await submitGameResult(authToken, {
+        gameType: 'memory',
+        score: finalScore,
+        accuracy: finalScore / totalObjects,
+        reactionTime: finalReactionTimeMs,
+        mistakes: finalMistakes,
+        difficulty: level,
+      });
+      setSubmitStatus('saved');
+    } catch (e) {
+      setSubmitStatus('error');
     }
   }
 
@@ -453,8 +496,27 @@ export default function MemoryScreen({ onBack }: Props) {
 
         <Text style={styles.result}>
           Reaction Time:{' '}
-          {reactionTime.toFixed(2)}s
+          {(reactionTime / 1000).toFixed(2)}s
         </Text>
+
+        {submitStatus === 'submitting' && (
+          <Text style={styles.saveStatus}>
+            Saving your result...
+          </Text>
+        )}
+
+        {submitStatus === 'saved' && (
+          <Text style={styles.saveStatus}>
+            ✓ Result saved
+          </Text>
+        )}
+
+        {submitStatus === 'error' && (
+          <Text style={styles.saveStatusError}>
+            Couldn't save your result. It won't count toward
+            your progress this time.
+          </Text>
+        )}
 
         <Pressable
           style={styles.playAgainButton}
@@ -644,6 +706,20 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+
+  saveStatus: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+
+  saveStatusError: {
+    fontSize: 14,
+    color: colors.error,
     textAlign: 'center',
     marginBottom: 10,
   },

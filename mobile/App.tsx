@@ -2,7 +2,7 @@
 import './src/i18n/i18n';
 import 'react-native-gesture-handler';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { NavigationContainer } from '@react-navigation/native';
 
@@ -47,6 +47,10 @@ const Stack =
   createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
+  const [authToken, setAuthToken] = useState<string | null>(
+    null
+  );
+
   useEffect(() => {
     setupAlarmChannel();
   }, []);
@@ -76,13 +80,14 @@ export default function App() {
         <Stack.Screen name="Login">
           {({ navigation }) => (
             <LoginScreen
-              onLoginSuccess={(role) =>
+              onLoginSuccess={(role, token) => {
+                setAuthToken(token);
                 navigation.navigate(
                   role === 'caregiver'
                     ? 'CaregiverDashboard'
                     : 'Mood'
-                )
-              }
+                );
+              }}
               onGoToRegister={() =>
                 navigation.navigate('Register')
               }
@@ -163,6 +168,7 @@ export default function App() {
           {({ navigation }) => (
             <MemoryScreen
               onBack={() => navigation.goBack()}
+              authToken={authToken}
             />
           )}
         </Stack.Screen>

@@ -17,7 +17,7 @@ type Role = 'patient' | 'caregiver';
 
 // Swap this out for your real navigation type once react-navigation is wired up.
 type Props = {
-  onLoginSuccess: (role: Role) => void;
+  onLoginSuccess: (role: Role, token: string) => void;
   onGoToRegister: () => void;
 };
 
@@ -38,8 +38,14 @@ export default function LoginScreen({ onLoginSuccess, onGoToRegister }: Props) {
     setSubmitting(true);
     try {
       const result = await loginUser(username, password);
+      // Persist the token (main's AsyncStorage-backed pattern) so screens
+      // that call authFetch()/getAuthToken() directly — e.g. the
+      // caregiver dashboard/progress screens — keep working. We also
+      // still pass the token up through the callback, since App.tsx's
+      // authToken state is what MemoryScreen relies on to submit game
+      // results; dropping it here would silently break that flow.
       await saveAuthToken(result.token);
-      onLoginSuccess(result.role);
+      onLoginSuccess(result.role, result.token);
     } catch (e: any) {
       setError(e.message || 'Could not log in. Please check your details and try again.');
     } finally {
