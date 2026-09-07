@@ -85,6 +85,7 @@ export default function MemoryScreen({ onBack, authToken }: Props) {
 
   type SubmitStatus = 'idle' | 'submitting' | 'saved' | 'error';
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>('idle');
+  const [submitErrorMessage, setSubmitErrorMessage] = useState('');
 
   function createRound(selectedLevel: MemoryLevel) {
     const settings = MEMORY_LEVELS[selectedLevel];
@@ -107,6 +108,7 @@ export default function MemoryScreen({ onBack, authToken }: Props) {
     setReactionTime(0);
     setStartTime(null);
     setSubmitStatus('idle');
+    setSubmitErrorMessage('');
   }
 
   useEffect(() => {
@@ -187,8 +189,14 @@ export default function MemoryScreen({ onBack, authToken }: Props) {
   ) {
     if (!authToken) {
       // Not logged in with a patient session (or no JWT was captured) —
-      // nothing to attach the result to, so skip silently rather than
-      // blocking the result screen.
+      // there's nothing to attach the result to. This must NOT be a
+      // silent no-op: the person needs to see that the result was not
+      // saved, so we surface it as an explicit error state rather than
+      // returning quietly.
+      setSubmitStatus('error');
+      setSubmitErrorMessage(
+        "You're not logged in, so this result couldn't be saved."
+      );
       return;
     }
 
@@ -206,6 +214,9 @@ export default function MemoryScreen({ onBack, authToken }: Props) {
       setSubmitStatus('saved');
     } catch (e) {
       setSubmitStatus('error');
+      setSubmitErrorMessage(
+        "Couldn't save your result. It won't count toward your progress this time."
+      );
     }
   }
 
@@ -513,8 +524,7 @@ export default function MemoryScreen({ onBack, authToken }: Props) {
 
         {submitStatus === 'error' && (
           <Text style={styles.saveStatusError}>
-            Couldn't save your result. It won't count toward
-            your progress this time.
+            {submitErrorMessage}
           </Text>
         )}
 
