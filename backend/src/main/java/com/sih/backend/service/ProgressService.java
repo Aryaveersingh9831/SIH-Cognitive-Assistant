@@ -50,12 +50,13 @@ public class ProgressService {
         List<GameResult> results = gameResultRepository.findByUserOrderByCreatedAtDesc(authenticatedUser);
 
         if (results.isEmpty()) {
-            return new ProgressResponse(requestedPatientId, 0, 0.0, null, null, TREND_INSUFFICIENT_DATA);
+            return new ProgressResponse(
+                    requestedPatientId, 0, 0.0, authenticatedUser.getCurrentDifficulty(), null, TREND_INSUFFICIENT_DATA);
         }
 
         int totalSessions = results.size();
         double averageAccuracy = results.stream().mapToDouble(GameResult::getAccuracy).average().orElse(0.0);
-        int currentDifficulty = results.get(0).getDifficulty();
+        int currentDifficulty = authenticatedUser.getCurrentDifficulty();
         double averageDifficulty = results.stream().mapToInt(GameResult::getDifficulty).average().orElse(0.0);
         String trend = calculateTrend(results);
 

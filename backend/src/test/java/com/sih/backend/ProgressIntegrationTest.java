@@ -70,7 +70,7 @@ class ProgressIntegrationTest {
     }
 
     @Test
-    void patientWithNoResultsGetsValidEmptyProgress() throws Exception {
+    void patientWithNoResultsGetsValidEmptyProgressWithDefaultCurrentDifficulty() throws Exception {
         String phone = uniquePhone();
         String registerResponse = registerPatient(phone);
         String patientId = patientIdFromRegisterResponse(registerResponse);
@@ -81,7 +81,7 @@ class ProgressIntegrationTest {
                 .andExpect(jsonPath("$.patientId", is(patientId)))
                 .andExpect(jsonPath("$.totalSessions", is(0)))
                 .andExpect(jsonPath("$.averageAccuracy", is(0.0)))
-                .andExpect(jsonPath("$.currentDifficulty", nullValue()))
+                .andExpect(jsonPath("$.currentDifficulty", is(1)))
                 .andExpect(jsonPath("$.averageDifficulty", nullValue()))
                 .andExpect(jsonPath("$.recentPerformanceTrend", is("insufficient_data")))
                 .andExpect(jsonPath("$.passwordHash").doesNotExist())
@@ -89,25 +89,28 @@ class ProgressIntegrationTest {
     }
 
     @Test
-    void patientWithOneResultGetsCorrectTotalsAndCurrentDifficulty() throws Exception {
+    void patientWithOneResultGetsCorrectTotalsAndPersistentCurrentDifficulty() throws Exception {
         String phone = uniquePhone();
         String registerResponse = registerPatient(phone);
         String patientId = patientIdFromRegisterResponse(registerResponse);
         String token = loginAndGetToken(phone);
 
+        // GameResult.difficulty (3) is historical session data and must NOT leak into
+        // the patient's persistent currentDifficulty, which starts at 1 and only
+        // changes via a validated ML recommendation (see GameResultMlIntegrationTest).
         submitResult(token, 8, 0.8, 1200, 2, 3);
 
         mockMvc.perform(get("/api/progress/patient/" + patientId).header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalSessions", is(1)))
                 .andExpect(jsonPath("$.averageAccuracy", is(0.8)))
-                .andExpect(jsonPath("$.currentDifficulty", is(3)))
+                .andExpect(jsonPath("$.currentDifficulty", is(1)))
                 .andExpect(jsonPath("$.averageDifficulty", is(3.0)))
                 .andExpect(jsonPath("$.recentPerformanceTrend", is("insufficient_data")));
     }
 
     @Test
-    void averagesAndCurrentDifficultyReflectMostRecentResult() throws Exception {
+    void averageDifficultyReflectsResultsWhileCurrentDifficultyStaysPatientState() throws Exception {
         String phone = uniquePhone();
         String registerResponse = registerPatient(phone);
         String patientId = patientIdFromRegisterResponse(registerResponse);
@@ -120,7 +123,7 @@ class ProgressIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalSessions", is(2)))
                 .andExpect(jsonPath("$.averageAccuracy", is(0.6)))
-                .andExpect(jsonPath("$.currentDifficulty", is(2)))
+                .andExpect(jsonPath("$.currentDifficulty", is(1)))
                 .andExpect(jsonPath("$.averageDifficulty", is(1.5)));
     }
 
