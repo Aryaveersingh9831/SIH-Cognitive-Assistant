@@ -91,10 +91,10 @@ export default function CaregiverPatientDetailScreen({ patientId, patientName, o
       ) : (
         <View style={styles.historyList}>
           {history.data.map((result, index) => (
-            <View key={`${result.timestamp}-${index}`} style={styles.historyCard}>
+            <View key={`${result.createdAt}-${index}`} style={styles.historyCard}>
               <View style={styles.historyTop}>
                 <Text style={styles.gameType}>{result.gameType}</Text>
-                <Text style={styles.timestamp}>{formatDate(result.timestamp)}</Text>
+                <Text style={styles.timestamp}>{formatDate(result.createdAt)}</Text>
               </View>
               <View style={styles.historyStatsRow}>
                 <HistoryStat label="Score" value={String(result.score)} />

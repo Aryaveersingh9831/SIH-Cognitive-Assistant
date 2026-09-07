@@ -119,7 +119,7 @@ export interface GameResult {
   reactionTime: number;
   mistakes: number;
   difficulty: number;
-  timestamp: string;
+  createdAt: string;
 }
 
 export async function getPatientGameResults(patientId: string | number): Promise<GameResult[]> {
