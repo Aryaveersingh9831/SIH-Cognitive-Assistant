@@ -56,7 +56,7 @@ public class AuthService {
         }
 
         String token = jwtService.generateToken(user.getId(), user.getRole().name());
-        return new LoginResponse(token, toApiRole(user.getRole()), user.getId());
+        return new LoginResponse(token, toApiRole(user.getRole()), user.getId(), user.getPatientId());
     }
 
     private Optional<User> findByIdentifier(String identifier) {
