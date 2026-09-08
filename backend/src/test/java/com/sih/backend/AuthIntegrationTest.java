@@ -150,7 +150,28 @@ class AuthIntegrationTest {
         mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role", is("patient")))
-                .andExpect(jsonPath("$.userId", notNullValue()));
+                .andExpect(jsonPath("$.userId", notNullValue()))
+                .andExpect(jsonPath("$.patientId", startsWith("PT-")));
+    }
+
+    @Test
+    void meForCaregiverOmitsPatientId() throws Exception {
+        String phone = uniquePhone();
+        register("Caregiver One", phone, "secret123", "caregiver");
+
+        String loginResponse = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("identifier", phone, "password", "secret123"))))
+                .andReturn().getResponse().getContentAsString();
+
+        String token = (String) objectMapper.readValue(loginResponse, Map.class).get("token");
+
+        mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role", is("caregiver")))
+                .andExpect(jsonPath("$.userId", notNullValue()))
+                .andExpect(jsonPath("$.patientId").doesNotExist());
     }
 
     @Test

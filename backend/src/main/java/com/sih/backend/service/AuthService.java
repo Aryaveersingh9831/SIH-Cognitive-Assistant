@@ -2,6 +2,7 @@ package com.sih.backend.service;
 
 import com.sih.backend.dto.LoginRequest;
 import com.sih.backend.dto.LoginResponse;
+import com.sih.backend.dto.MeResponse;
 import com.sih.backend.dto.RegisterRequest;
 import com.sih.backend.dto.RegisterResponse;
 import com.sih.backend.entity.Role;
@@ -9,6 +10,7 @@ import com.sih.backend.entity.User;
 import com.sih.backend.exception.DuplicatePhoneException;
 import com.sih.backend.exception.InvalidCredentialsException;
 import com.sih.backend.exception.InvalidRoleException;
+import com.sih.backend.exception.PatientNotFoundException;
 import com.sih.backend.repository.UserRepository;
 import com.sih.backend.security.JwtService;
 import java.util.Optional;
@@ -57,6 +59,13 @@ public class AuthService {
 
         String token = jwtService.generateToken(user.getId(), user.getRole().name());
         return new LoginResponse(token, toApiRole(user.getRole()), user.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public MeResponse getMe(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new PatientNotFoundException("User not found"));
+        return new MeResponse(user.getId(), toApiRole(user.getRole()), user.getPatientId());
     }
 
     private Optional<User> findByIdentifier(String identifier) {
