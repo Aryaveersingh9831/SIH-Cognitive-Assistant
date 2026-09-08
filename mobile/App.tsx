@@ -88,10 +88,12 @@ export default function App() {
         <Stack.Screen name="Register">
           {({ navigation }) => (
             <RegisterScreen
-              onRegisterSuccess={(role, token) => {
-                setAuthToken(token);
+              onRegisterSuccess={(registeredRole, registeredToken, registeredPatientId) => {
+                setAuthToken(registeredToken);
+                setRole(registeredRole);
+                setPatientId(registeredPatientId);
                 navigation.navigate(
-                  role === 'caregiver'
+                  registeredRole === 'caregiver'
                     ? 'CaregiverDashboard'
                     : 'Mood'
                 );

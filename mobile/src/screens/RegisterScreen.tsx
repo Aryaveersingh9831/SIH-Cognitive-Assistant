@@ -15,7 +15,7 @@ import { registerUser, loginUser, saveAuthToken, Role } from '../api/auth';
 import { API_BASE_URL } from '../api/config';
 
 type Props = {
-  onRegisterSuccess: (role: Role, token: string) => void;
+  onRegisterSuccess: (role: Role, token: string, patientId: string | null) => void;
   onGoToLogin: () => void;
 };
 
@@ -74,7 +74,7 @@ export default function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props
         // any screen that reads the token via getAuthToken()/authFetch()
         // instead of the onRegisterSuccess callback.
         await saveAuthToken(loginResult.token);
-        onRegisterSuccess(loginResult.role, loginResult.token);
+        onRegisterSuccess(loginResult.role, loginResult.token, loginResult.patientId);
       } catch (loginError: any) {
         // Registration itself worked — the account exists — but the
         // automatic sign-in failed (e.g. backend hiccup). Don't pretend
