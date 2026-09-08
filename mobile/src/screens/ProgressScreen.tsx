@@ -18,10 +18,17 @@ type LoadState =
   | { status: 'ready'; data: ProgressResponse };
 
 function trendLabel(raw: string): string {
-  const lower = raw.toLowerCase();
-  if (lower.includes('improv')) return 'Improving';
-  if (lower.includes('declin')) return 'Needs attention';
-  return 'Steady';
+  switch (raw) {
+    case 'improving':
+      return 'Improving';
+    case 'declining':
+      return 'Needs attention';
+    case 'insufficient_data':
+      return 'Not enough data';
+    case 'stable':
+    default:
+      return 'Steady';
+  }
 }
 
 export default function ProgressScreen({ patientId, onBack }: Props) {
