@@ -88,6 +88,7 @@ async function authFetch(path: string): Promise<Response> {
 export interface MeResponse {
   userId: number;
   role: Role;
+  patientId?: string;
 }
 
 export async function getMe(): Promise<MeResponse> {

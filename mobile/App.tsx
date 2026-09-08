@@ -28,7 +28,10 @@ import AlarmScreen from './src/screens/AlarmScreen';
 
 import MemoryScreen from './src/screens/MemoryScreen';
 
+import ProgressScreen from './src/screens/ProgressScreen';
+
 import { setupAlarmChannel } from './src/notifications/alarmChannel';
+import { getMe } from './src/api/auth';
 
 export type RootStackParamList = {
   Language: undefined;
@@ -38,6 +41,7 @@ export type RootStackParamList = {
   Home: undefined;
   GameSelection: undefined;
   Memory: undefined;
+  Progress: { patientId?: string };
   CaregiverDashboard: undefined;
   CaregiverPatientDetail: { patientId: string; patientName?: string };
   AlarmScreen: { title: string };
@@ -50,10 +54,25 @@ export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(
     null
   );
+  const [patientId, setPatientId] = useState<string | undefined>(
+    undefined
+  );
 
   useEffect(() => {
     setupAlarmChannel();
   }, []);
+
+  // Single place both login and registration (which auto-logs in) go through
+  // to learn the authenticated user's own patientId via the existing /me
+  // endpoint, so it doesn't need to be re-derived or duplicated per screen.
+  const loadPatientId = async () => {
+    try {
+      const me = await getMe();
+      setPatientId(me.patientId);
+    } catch {
+      setPatientId(undefined);
+    }
+  };
 
   return (
     <NavigationContainer>
@@ -80,8 +99,9 @@ export default function App() {
         <Stack.Screen name="Login">
           {({ navigation }) => (
             <LoginScreen
-              onLoginSuccess={(role, token) => {
+              onLoginSuccess={async (role, token) => {
                 setAuthToken(token);
+                await loadPatientId();
                 navigation.navigate(
                   role === 'caregiver'
                     ? 'CaregiverDashboard'
@@ -99,8 +119,9 @@ export default function App() {
         <Stack.Screen name="Register">
           {({ navigation }) => (
             <RegisterScreen
-              onRegisterSuccess={(role, token) => {
+              onRegisterSuccess={async (role, token) => {
                 setAuthToken(token);
+                await loadPatientId();
                 navigation.navigate(
                   role === 'caregiver'
                     ? 'CaregiverDashboard'
@@ -144,7 +165,7 @@ export default function App() {
                 // TODO: navigate to Reminders screen once it exists
               }}
               onProgress={() => {
-                // TODO: navigate to Progress screen once it exists
+                navigation.navigate('Progress', { patientId });
               }}
             />
           )}
@@ -170,6 +191,16 @@ export default function App() {
             <MemoryScreen
               onBack={() => navigation.goBack()}
               authToken={authToken}
+            />
+          )}
+        </Stack.Screen>
+
+        {/* PROGRESS */}
+        <Stack.Screen name="Progress">
+          {({ navigation, route }) => (
+            <ProgressScreen
+              patientId={route.params?.patientId}
+              onBack={() => navigation.goBack()}
             />
           )}
         </Stack.Screen>

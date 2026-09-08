@@ -40,6 +40,6 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<MeResponse> me(Authentication authentication) {
         JwtUserPrincipal principal = (JwtUserPrincipal) authentication.getPrincipal();
-        return ResponseEntity.ok(new MeResponse(principal.userId(), principal.role().toLowerCase()));
+        return ResponseEntity.ok(authService.getMe(principal.userId()));
     }
 }
